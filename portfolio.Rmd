@@ -1,0 +1,28 @@
+---
+title: "portfolio"
+author: "Katie"
+date: "May 12, 2018"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+I'm mainly focusing on [R](https://www.r-project.org/) now, but I've created a lot of work using other technologies too. Here is a sample.
+
+## Interactive quarterly report
+This is a sample report created with **AMcharts JS**. 
+<a href="chartsample.html"><img src="/img/amcharts.png" alt="report" style="height: 300px;"/></a>
+
+
+
+## Direwolves and Starks
+View my interactive Game of Thrones chart, made wtih **svg.js** and **jQuery**. Spoiler Alert: it details the Stark kids (including Jon Snow) and their connections to their Direwolves. 
+
+<a href="direwolves.html"><img src="/img/direwolves.png" alt="direwolves" style="height: 450px;"/></a>
+
+## Graphics made with Illustrator
+Here are some graphics I made using **Adobe Illustrator**. Some were for work, some for fun. Some are gifs, some are static jpgs. 
+
+<a href="graphics.html"><img src="/img/jon-snow-women.jpg" alt="direwolves" style="height: 300px;"/></a>

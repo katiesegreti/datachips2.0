@@ -1,0 +1,229 @@
+---
+title: "Tidying old functions"
+author: "Katie"
+date: 2018-05-11
+categories: ["R"]
+tags: ["R Markdown", "dplyr", "readr", "tidyr", "tidyverse"]
+output:
+  blogdown::html_page:
+    toc: true
+---
+
+
+<div id="TOC">
+<ul>
+<li><a href="#introducing-your-old-functions-to-your-new-friend-tidyverse">Introducing your old functions to your new friend tidyverse</a></li>
+<li><a href="#read-in-the-sample-data-with-readr">Read in the sample data with readr</a></li>
+<li><a href="#original-functions">Original functions</a></li>
+<li><a href="#updating-the-original-asset-manager-tables">Updating the original asset manager tables</a></li>
+<li><a href="#understanding-more-about-tidy-evaluation">Understanding more about tidy evaluation</a></li>
+<li><a href="#summary">Summary</a></li>
+</ul>
+</div>
+
+<div id="introducing-your-old-functions-to-your-new-friend-tidyverse" class="section level3">
+<h3>Introducing your old functions to your new friend tidyverse</h3>
+<p>A while back I wrote some <strong>R</strong> functions to analyze and summarize data for an ongoing quarterly report project I had been doing. The functions worked fine and I used them for a while, but then when I learned about the <a href="https://www.tidyverse.org/">tidyverse</a> I realized I could rewrite the functions more efficiently using the <strong>purrr</strong>, <strong>dplyr</strong> and <strong>tidyr</strong> packages.</p>
+<p>Unfortunately, just as I was finishing the function makeover project, I discovered I don’t have this freelance job anymore! But I was so close, I decided to finish making over the functions anyway and document the process.</p>
+<p>So let’s load some of the <strong>tidyverse</strong> packages that we’ll need here. I’m also loading the <strong>pander</strong> package for table formatting, and <strong>ggplot2</strong> so I can make some summary charts later.</p>
+<pre class="r"><code>library(readr) 
+library(dplyr) 
+library(tidyr) 
+library(pander)
+library(ggplot2)</code></pre>
+</div>
+<div id="read-in-the-sample-data-with-readr" class="section level3">
+<h3>Read in the sample data with readr</h3>
+<p>This data relates to institutional asset management activity. Each record represents an asset manager being hired by an investor. Identifying variables inculde <em>asset manager</em>, <em>date</em>, <em>institution name</em>, <em>institution type</em>, <em>asset class</em> and <em>investment region</em>.</p>
+<p>We can use the <strong>readr</strong> function <code>read_csv()</code> to read in a csv file. <em>USYmanagers.csv</em> is a dataframe of asset manager hiring activity among US institutions (i.e. pension funds, foundations, endowments) for 12 months.</p>
+<pre class="r"><code>USmanagersY &lt;- read_csv(&quot;USmanagersYear.csv&quot;) </code></pre>
+</div>
+<div id="original-functions" class="section level3">
+<h3>Original functions</h3>
+<p>These were the first <strong>R</strong> functions I wrote since grad school and they turned out to be kind of a mess. I used many <strong>for loops</strong> and had a lot of dupicate code among functions.</p>
+<p>Many of the tables I produced for these quarterly reports were a summary of asset managers by the number and total dollar value of the mandates they were hired for. After doing an overall summary, I then focused on filtering by <strong>asset class</strong>, or <strong>investment region</strong>, or <strong>investor location</strong>, etc. In my original function-writing process, I ended up writing a different function for each of these cases. Then of course, I ended up with a lot of duplicate code.</p>
+<div id="original-manager-table-function-general" class="section level4">
+<h4>Original manager table function (general)</h4>
+<p>Here is the function I wrote to create a table of asset managers sorted by the number and dollar value of the accounts they were hired to manage. This is the general one that does not filter by any criteria. It’s pretty long.</p>
+<pre class="r"><code>mgrTableORIGINAL &lt;- function(df1, sortz=1){
+  MGR &lt;- levels(droplevels(df1$AssetManager))
+  totals &lt;- c(&quot;total1&quot;, &quot;total2&quot;)
+  z &lt;- rep(0, length(MGR)*length(totals))
+  #create matrix
+  m1 &lt;- matrix(z, nrow=length(MGR), ncol=length(totals))
+  rownames(m1) &lt;- MGR
+  colnames(m1) &lt;- totals
+  #fill matrix
+  for(i in 1:length(MGR)){
+    m1[i,1] &lt;- nrow(df1[df1$AssetManager==MGR[i],])
+    m1[i,2] &lt;- sum(df1[df1$AssetManager==MGR[i], &quot;AccountSizeAmount&quot;])
+  }
+  if(sortz==1){
+    m2 &lt;- m1[order(m1[,2],m1[,1],decreasing=TRUE),]
+  }else{
+    m2 &lt;- m1[order(m1[,1],m1[,2],decreasing=TRUE),]
+  }
+  return(m2)
+}</code></pre>
+<p>There’s too much going on in this busy function! Let’s start with the arguments:</p>
+<ol style="list-style-type: decimal">
+<li><code>df1</code>: the dataframe(<em>USmanagersY</em> in thie case)</li>
+<li><code>sortz</code>: determines whether to sort by number of hires or disclosed value of hires(default is disclosed value)</li>
+</ol>
+<p>I used the <code>levels()</code> and <code>droplevels()</code> functions on columns a lot in these old functions, which I would save as variables and use a few different ways:</p>
+<ul>
+<li>To get row and column names for my tables,</li>
+<li>To find the number of categories (i.e. the <code>length()</code>), so I knew the number of rows and columns to make the matrix</li>
+<li>To use as a counter in my <em>for loops</em> to populate the matrix</li>
+</ul>
+</div>
+<div id="original-manager-table-function-filtered-by-asset-class" class="section level4">
+<h4>Original manager table function (filtered by asset class)</h4>
+<p>After <code>mgrTableORIGINAL()</code> I wrote other functions that were almost exactly like the one above but filtered by some criteria. Apparently it didn’t occur to me to call <code>MgrTableORIGINAL()</code> in other functions so I just rewrote it a bunch of times! This one filters by the column <em>“MainAssetClass”</em>:</p>
+<pre class="r"><code>mgrTableACORIGINAL &lt;- function(df1, assetclass, sortz=1){
+  dftemp &lt;- df1[df1$MainAssetClass==assetclass,]
+  MGR &lt;- levels(droplevels(factor(dftemp$AssetManager)))
+  totals &lt;- c(&quot;total1&quot;, &quot;total2&quot;)
+  z &lt;- rep(0, length(MGR)*length(totals))
+  #create matrix
+  m1 &lt;- matrix(z, nrow=length(MGR), ncol=length(totals))
+  rownames(m1) &lt;- MGR
+  colnames(m1) &lt;- totals
+  #fill matrix
+  for(i in 1:length(MGR)){
+    m1[i,1] &lt;- nrow(dftemp[dftemp$AssetManager==MGR[i],])
+    m1[i,2] &lt;- sum(dftemp[dftemp$AssetManager==MGR[i], &quot;AccountSizeAmount&quot;])
+  }
+  if(length(MGR)==1){
+    return(m1)
+  } 
+  if(sortz==1){
+    m2 &lt;- m1[order(m1[,2],m1[,1],decreasing=TRUE),]
+  }else{
+    m2 &lt;- m1[order(m1[,1],m1[,2],decreasing=TRUE),]
+  }
+  return(m2)
+}</code></pre>
+<p>So this one takes three arguments: 1. <code>df1</code>: the dataframe(<em>USmanagersY</em> in this case) 2. <code>assetclass</code>: a string of the asset class to filter by 3. <code>sortz</code>: determines whether to sort by number of hires or disclosed value of hires(default is disclosed value)</p>
+<p>It’s pretty much the same as the general one above, it just filters by an asset class before it creates a table.</p>
+<p>And then I had a few other similar functions that filtered by other columns such as <em>“InvestmentRegion”</em> and <em>“SubAssetClass”</em>.</p>
+<p>I’m not going to bore you with all of them here because they’re all so similar and they would go on forever! But here is a function call to <code>mgrTableACORIGINAL()</code> to show you it works. Here is an asset manager summary for the asset class <em>“Commodities”</em>:</p>
+<pre class="r"><code>pandoc.table(mgrTableACORIGINAL(USmanagersY, &quot;Commodities&quot;), style = &quot;rmarkdown&quot;)
+## 
+## 
+## |               &amp;nbsp;                | total1 | total2 |
+## |:-----------------------------------:|:------:|:------:|
+## |  **NGP Energy Capital Management**  |   2    |  310   |
+## |         **Geronimo Energy**         |   1    |  300   |
+## |     **Energy Capital Partners**     |   1    |  250   |
+## |      **Avenue Capital Group**       |   1    |  150   |
+## |     **Quantum Energy Partners**     |   3    |  142   |
+## |            **BlackRock**            |   1    |  100   |
+## |     **Sprott Asset Management**     |   1    |  100   |
+## |    **Bluescape Energy Partners**    |   1    |   90   |
+## |     **Edge Natural Resources**      |   1    |   75   |
+## |       **Lime Rock Partners**        |   1    |   50   |
+## |      **Natural Gas Partners**       |   1    |   50   |
+## |   **Five Point Capital Partners**   |   1    |   40   |
+## |         **Denham Capital**          |   1    |   30   |
+## |     **Energy &amp; Minerals Group**     |   1    |   25   |
+## |   **Mountain Capital Management**   |   1    |   25   |
+## |         **EnCap Flatrock**          |   1    |   20   |
+## |        **Blue Water Energy**        |   1    |   10   |
+## | **Kayne Anderson Capital Advisors** |   1    |   10   |
+## |    **Carnelian Energy Capital**     |   1    |  7.5   |
+## |         **Corex Resources**         |   1    |   0    |
+## |        **EnCap Investments**        |   1    |   0    |</code></pre>
+</div>
+</div>
+<div id="updating-the-original-asset-manager-tables" class="section level3">
+<h3>Updating the original asset manager tables</h3>
+<p>After learning about <strong>dplyr</strong> and the <a href="https://www.tidyverse.org/">tidyverse</a> I realized I could use <code>dplyr::summary()</code> in conjunction with other <strong>dplyr</strong> verbs to make most of the tables I needed, instead of calculating the dimensions to make a matrix and then using <em>for loops</em> to populate it.</p>
+<div id="updated-asset-manager-table-general" class="section level4">
+<h4>Updated asset manager table (general)</h4>
+<p>I started with a main asset manager table, which is already so much faster and cleaner than the earlier <code>mgrTableORIGINAL()</code> because it needs zero <em>for loops</em> because I grouped and summarized using <strong>dplyr</strong> verbs. Take a look:</p>
+<pre class="r"><code>mgrTableNEW &lt;- function(df1, sortz = 1) {
+  mgrz &lt;- df1 %&gt;%
+    replace_na(list(AccountSizeAmount = 0)) %&gt;%
+    group_by(AssetManager) %&gt;%
+    summarise(Total = n(), SumTotal = sum(AccountSizeAmount)) %&gt;%
+    replace(., is.na(.), 0)
+  if(sortz != 1) {
+    mgrz &lt;- arrange(mgrz, desc(Total), desc(SumTotal))
+  } else {
+    mgrz &lt;- arrange(mgrz, desc(SumTotal), desc(Total))
+  }
+  return(mgrz)
+}</code></pre>
+<p>So fresh and so clean! It takes the same two arguments as <code>MgrTableORIGINAL()</code>. Instead of creating a matrix and using a for loop to populate it, it uses the <strong>dplyr</strong> verbs <code>group_by()</code>, <code>summarise()</code> and <code>arrange()</code>, as well as the <strong>tidyr</strong> function <code>replace_na()</code> in order to replace <em>NA</em> <em>AccountSizeAmount</em> values with zeroes.</p>
+<p>OK, I think that looks pretty easy to understand (espcially compared to the ORIGINALS) so let’s move to the filtered asset manager table functions.</p>
+</div>
+<div id="updated-asset-manager-table-filtered-by-any-column" class="section level4">
+<h4>Updated asset manager table (filtered by any column)</h4>
+<p>At first I wrote down a list of all the functions I had to rewrite and was going to do them one by one, but then I realized I didn’t have to rewrite all of them if I just wrote one super function to replace them all. I would have to make it more generic.</p>
+<p>Introducing <code>mgrTableX()</code>! Instead of writing a whole new asset class-specific function, and then a new investment-region specific function, and then a cap size-specific function (and so on, and on…) I could write a function that would let me pass the column name I wanted to filter by, in addition to the filter criteria.</p>
+<p><code>mgrTableX()</code> takes four arguments. (Note that <code>colname</code> is the only addition to the three arugments from <code>MgrTableACORIGINAL()</code>):</p>
+<ol style="list-style-type: decimal">
+<li><p><code>df0</code>: the dataframe (<em>USmanagersY</em> in this case)</p></li>
+<li><p><code>colname</code>: the column we want to filter by</p></li>
+<li><p><code>subclass</code>: a string of the criteria to filter the column by</p></li>
+<li><p><code>sortz</code>: determines whether to sort by number of hires or disclosed value of hires (default is by disclosed value)</p></li>
+</ol>
+<p>The <code>colname</code> and <code>subclass</code> arguments are used with <code>dplyr::filter()</code>. This was my first shot at this function:</p>
+<pre class="r"><code>mgrTableXv1 &lt;- function(df0, colname, subclass, sortz = 1) {
+  df1 &lt;- filter(df0, (colname) == subclass)
+  mgrTableNEW(df1, sortz = sortz)
+}</code></pre>
+<p>It looks to me like it should work, but running <code>mgrTableXv1(USmanagersY, MainAssetClass, &quot;Commodities&quot;)</code> gives me an <strong>evaluation error: object ‘MainAssetClass’ not found.</strong></p>
+<p>I kept getting error messages when I first started writing functions with <strong>dplyr</strong> and trying to pass function arguments to <strong>dplyr</strong> verbs. After a lot of troubleshooting and googling in the middle of the night one night, I came across <a href="https://colinfay.me/tidyeval-1/">this blog post</a> from <a href="https://twitter.com/_ColinFay">Colin Fay</a> on tidy evaluation that saved me. Here I was introduced to the <code>enquo()</code> function.</p>
+<pre class="r"><code>mgrTableX &lt;- function(df0, colname, subclass, sortz = 1) {
+  colname &lt;- enquo(colname)
+  df1 &lt;- filter(df0, (!!colname) == subclass)
+  mgrTableNEW(df1, sortz = sortz)
+}</code></pre>
+<p>If I do say so myself, <code>mgrTableX()</code> is a very cute little function. It takes the column name, filters by the criteria, and then calls <code>mgrTableNEW()</code> to return a table.</p>
+<p>This function call produces the same results as <code>mgrTableACORIGINAL(USmanagersY, &quot;Commodities&quot;)</code> above.</p>
+<pre class="r"><code>pandoc.table(mgrTableX(USmanagersY, MainAssetClass, &quot;Commodities&quot;), style = &quot;rmarkdown&quot;)
+## 
+## 
+## |          AssetManager           | Total | SumTotal |
+## |:-------------------------------:|:-----:|:--------:|
+## |  NGP Energy Capital Management  |   2   |   310    |
+## |         Geronimo Energy         |   1   |   300    |
+## |     Energy Capital Partners     |   1   |   250    |
+## |      Avenue Capital Group       |   1   |   150    |
+## |     Quantum Energy Partners     |   3   |   142    |
+## |            BlackRock            |   1   |   100    |
+## |     Sprott Asset Management     |   1   |   100    |
+## |    Bluescape Energy Partners    |   1   |    90    |
+## |     Edge Natural Resources      |   1   |    75    |
+## |       Lime Rock Partners        |   1   |    50    |
+## |      Natural Gas Partners       |   1   |    50    |
+## |   Five Point Capital Partners   |   1   |    40    |
+## |         Denham Capital          |   1   |    30    |
+## |     Energy &amp; Minerals Group     |   1   |    25    |
+## |   Mountain Capital Management   |   1   |    25    |
+## |         EnCap Flatrock          |   1   |    20    |
+## |        Blue Water Energy        |   1   |    10    |
+## | Kayne Anderson Capital Advisors |   1   |    10    |
+## |    Carnelian Energy Capital     |   1   |   7.5    |
+## |         Corex Resources         |   1   |    0     |
+## |        EnCap Investments        |   1   |    0     |</code></pre>
+</div>
+</div>
+<div id="understanding-more-about-tidy-evaluation" class="section level3">
+<h3>Understanding more about tidy evaluation</h3>
+<p>A couple weeks after I found that blog post and started using <code>enquo()</code> I was lucky enough to attend an <a href="http://www.rladiesnyc.org/">R-Ladies NYC</a> meetup featuring a discussion by <strong>R</strong> guru and tidy data master <a href="https://twitter.com/hadleywickham">Hadley Wickham</a>. I was pleasantly surprised when Hadley spoke specifically about non standard evaluation and the <code>enquo()</code> function, because it gave me a fuller understanding of what I had already done.</p>
+<p>The reason I had gotten error messages and needed to use <code>enquo()</code> is because one of the arguments I passed into <code>mgrTableX()</code> was automatically quoted by <strong>R</strong>. So in the above function call, R would automatically wrap <em>MainAssetClass</em> in quotes. (That’s <em>standard evaluation</em>.) I needed that argument to be evaluated with <em>tidy evaluation</em> instead. When using <strong>dplyr</strong> verbs, the column name can’t be a string, which is what happens when your function arguments are automatically quoted.</p>
+<p>As I learned from Hadley, a good way to know if your argument is automatically quoted or not, is to check if it works on its own (outside of a function). If it <em>doesn’t</em> (like <em>MainAssetClass</em>, which is a column in a data frame and does not mean anything on its own), it is <strong>automatically quoted</strong>. If it <em>can</em> be evaluated outside a function (like the name of dataframe <em>USmanagersY</em>), it is an <strong>evaluated argument</strong> that won’t need <code>enquo()</code>.</p>
+<p>So I reassigned the <code>mgrTableX()</code> function argument <em>colname</em> with <code>colname &lt;- enquo(colname)</code>. Then when I needed to use it with <code>filter()</code>, I added <em>!!</em> (pronounced “bang bang”) to the beginning <code>(!!colname)</code>. Then it works just the way I need it to.</p>
+</div>
+<div id="summary" class="section level3">
+<h3>Summary</h3>
+<p>By all means I consider the tidying of my asset manager functions a success.</p>
+<p>First of all, I was able to reduce the number of functions I needed from 22 to 17.</p>
+<p><img src="/post/2018-05-11-tidying-old-functions_files/figure-html/unnamed-chunk-10-1.png" width="672" /></p>
+<p>And perhaps more impressively, I reduced the lines of code by 49%, from an insane <em>493 lines</em> down to just <em>253</em>!</p>
+<p><img src="/post/2018-05-11-tidying-old-functions_files/figure-html/unnamed-chunk-11-1.png" width="672" /></p>
+<p>In conclusion, I am very pleased with the progress I made implementing tidyverse practices into my old functions. If you have some old functions that you’ve been using for years, it’s worth the time to look at them and figure out how to make them more efficient.</p>
+</div>

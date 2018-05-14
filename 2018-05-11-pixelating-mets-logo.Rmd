@@ -1,0 +1,36 @@
+---
+title: Pixelating the Mets logo
+author: Katie
+date: '2018-05-11'
+slug: pixelating-mets-logo
+categories: []
+tags:
+  - pixel art
+  - ny mets
+  - mlb
+  - illustrator
+---
+
+## Perler bead patterns
+One of my favorite hobbies is creating pixel art with perler beads. To get the patterns, I usually search for pixelated images on pinterest. But I've always wanted to create my *own* pixelated images too!
+
+I found this quad-ruled boombox notebook at TJMaxx recently and it inspired me to design my own pixel boombox. 
+
+![](https://78.media.tumblr.com/855e983aa4e0a450b7176e52e3d834a1/tumblr_p8lge5kWqS1uf2rs1o1_1280.jpg)
+
+
+## Mets logo
+Although it is often painful, I am a fan of the New York Mets. I searched a while back for a pixelated NY Mets logo but couldn't find one. So I figured that was a good image to start trying to pixelate.
+
+### Adobe Illustrator
+I've used Adobe Illustrator a lot for making graphics and I'm much more comfortable using that than Photoshop. So that's where I'm starting.
+
+I found a basic blue and orange NY logo in the Mets font and placed it in an Illustrator file. Then highlighted the image and went to `Effect -> Pixelate -> Color Halftone...` which brought up a dialog box:
+
+![](/post/img/color-halftone.png)
+
+Right now I'm just exploring and having fun so I just put in some numbers without doing any research. The results are actually really fun!
+
+![](/post/img/nym2.png)
+
+I'm going to try to use this for a perler bead pattern! It may or may not work, but this was fun so far.
